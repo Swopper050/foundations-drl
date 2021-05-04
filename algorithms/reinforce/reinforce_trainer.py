@@ -1,8 +1,9 @@
+import gym
 import matplotlib.pyplot as plt
 import seaborn as sns
 from algorithms.base_trainer import BaseTrainer
-from algorithms.reinforce.discrete_reinforce_agent import \
-    DiscreteReinforceAgent
+from algorithms.reinforce import (ContinuousReinforceAgent,
+                                  DiscreteReinforceAgent)
 
 sns.set_style("darkgrid")
 
@@ -15,7 +16,7 @@ class ReinforceTrainer(BaseTrainer):
     def __init__(self, *, gamma=0.99):
         self.gamma = gamma
 
-    def train_agent(self, *, env, max_episodes=1000, center_returns=True, render=False):
+    def train_agent(self, *, env, max_episodes=1000, center_returns=True, render=True):
         """
         Trains an agent on the given environment following the REINFORCE algorithm.
 
@@ -36,7 +37,7 @@ class ReinforceTrainer(BaseTrainer):
 
             episode_return = 0.0
             while not done:
-                action = agent.act(obs)
+                action = agent.act(obs, deterministic=False)
                 obs, reward, done, _ = env.step(action)
                 episode_return += reward
                 agent.store_step(reward)
@@ -45,8 +46,8 @@ class ReinforceTrainer(BaseTrainer):
                     env.render()
 
             agent.train(gamma=self.gamma, center_returns=center_returns)
-            print("Episode {} -- return={}".format(episode, episode_return))
             episode_returns.append(episode_return)
+            print("Episode {} -- return={}".format(episode, episode_return))
 
         sns.lineplot(x=list(range(max_episodes)), y=episode_returns)
         plt.show()
@@ -54,13 +55,25 @@ class ReinforceTrainer(BaseTrainer):
     def create_agent(self, env):
         """
         Given a specific environment, creates an agent specific for this environment.
+        It checks whether the agent requires continuous or discrete actions, and then
+        creates an agent accordingly
 
         :param env: gym.env to create an agent for
-        :returns: DiscreteReinforceAgent
+        :returns: ContinuousReinforceAgent or DiscreteReinforceAgent
         """
 
-        return DiscreteReinforceAgent(
-            obs_dim=env.observation_space.shape[0],
-            act_dim=env.action_space.n,
-            hidden_sizes=[64],
-        )
+        if isinstance(env.action_space, gym.spaces.Box):
+            return ContinuousReinforceAgent(
+                obs_dim=env.observation_space.shape[0],
+                act_dim=env.action_space.shape[0],
+                hidden_sizes=[64],
+            )
+
+        if isinstance(env.action_space, gym.spaces.Discrete):
+            return DiscreteReinforceAgent(
+                obs_dim=env.observation_space.shape[0],
+                act_dim=env.action_space.n,
+                hidden_sizes=[64],
+            )
+
+        raise ValueError("No known action space for this environment")

@@ -4,13 +4,16 @@ import torch.nn as nn
 import torch.optim as optim
 from algorithms.base_agent import BaseAgent
 from algorithms.utils import calculate_returns, create_mlp
-from torch.distributions import Categorical
+from torch.distributions import Normal
+
+LOG_STD_MAX = 2.0
+LOG_STD_MIN = -20.0
 
 
-class DiscreteReinforceAgent(nn.Module, BaseAgent):
+class ContinuousReinforceAgent(nn.Module, BaseAgent):
     """
-    Discrete REINFORCE agent, to be trained by the ReinforceTrainer on an
-    environment with discrete actions.
+    Continuous REINFORCE agent, to be trained by the ReinforceTrainer on an
+    environment with continuous actions.
     """
 
     def __init__(self, *, obs_dim, act_dim, hidden_sizes=[128, 64]):
@@ -25,22 +28,28 @@ class DiscreteReinforceAgent(nn.Module, BaseAgent):
         self.act_dim = act_dim
 
         self.net = create_mlp(
-            sizes=[obs_dim] + hidden_sizes + [act_dim], hidden_activation=nn.ReLU
+            sizes=[obs_dim] + hidden_sizes,
+            hidden_activation=nn.ReLU,
         )
-        self.optimizer = optim.Adam(self.parameters(), lr=0.002)
+        self.mu_layer = nn.Linear(hidden_sizes[-1], act_dim)
+        self.log_std_layer = nn.Linear(hidden_sizes[-1], act_dim)
 
+        self.optimizer = optim.Adam(self.parameters(), lr=0.002)
         self.episode_reset()
 
     def forward(self, X):
         """
         Performs a forward pass through the network. Here, only the observation is
-        passed through the network and the probabilities are not yet calculated from
-        them.
+        passed through the network and the probability distribution parmeters are
+        returned.
 
         :param X: torch.tensor with a batch of observations
-        :returns: torch.tensor with the output of the network
+        :returns: torch.tensor with the means for every action dimension
         """
-        return self.net(X)
+        net_out = self.net(X)
+        mu = self.mu_layer(net_out)
+        log_std = self.log_std_layer(net_out)
+        return mu, log_std
 
     def act(self, observation, deterministic=False):
         """
@@ -51,11 +60,12 @@ class DiscreteReinforceAgent(nn.Module, BaseAgent):
         :returns: action, and possibly the logprobability of that action
         """
 
-        logits = self.forward(torch.from_numpy(observation.astype(np.float32)))
-        action_distribution = Categorical(logits=logits)
-        action = torch.argmax(logits) if deterministic else action_distribution.sample()
+        mu, log_std = self.forward(torch.from_numpy(observation.astype(np.float32)))
+        std = torch.exp(torch.clamp(log_std, LOG_STD_MIN, LOG_STD_MAX))
+        action_distribution = Normal(mu, std)
+        action = mu if deterministic else action_distribution.rsample()
         self.log_probs.append(action_distribution.log_prob(action))
-        return action.item()
+        return action.detach().numpy()
 
     def episode_reset(self):
         """
@@ -87,7 +97,7 @@ class DiscreteReinforceAgent(nn.Module, BaseAgent):
             returns -= returns.mean()
 
         log_probs = torch.stack(self.log_probs)
-        loss = torch.sum(-log_probs * returns)
+        loss = torch.sum(-log_probs * returns.view(-1, 1))
 
         self.optimizer.zero_grad()
         loss.backward()
