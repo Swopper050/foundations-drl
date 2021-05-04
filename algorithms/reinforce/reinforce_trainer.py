@@ -15,11 +15,14 @@ class ReinforceTrainer(BaseTrainer):
     def __init__(self, *, gamma=0.99):
         self.gamma = gamma
 
-    def train_agent(self, *, env, max_episodes=1000):
+    def train_agent(self, *, env, max_episodes=1000, center_returns=True, render=False):
         """
         Trains an agent on the given environment following the REINFORCE algorithm.
 
         :param env: gym.env to train an agent on
+        :param max_episodes: int, maximum number of episodes to gather/train on
+        :param center_returns: bool, whether or not to apply mean baseline during training
+        :param render: bool, whether or not to render the environment during training
         :returns: trained agent of type BaseAgent
         """
 
@@ -36,11 +39,12 @@ class ReinforceTrainer(BaseTrainer):
                 action = agent.act(obs)
                 obs, reward, done, _ = env.step(action)
                 episode_return += reward
-                env.render()
-
                 agent.store_step(reward)
 
-            agent.train(gamma=self.gamma, center_returns=True)
+                if render:
+                    env.render()
+
+            agent.train(gamma=self.gamma, center_returns=center_returns)
             print("Episode {} -- return={}".format(episode, episode_return))
             episode_returns.append(episode_return)
 
