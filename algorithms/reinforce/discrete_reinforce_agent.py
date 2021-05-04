@@ -27,7 +27,7 @@ class DiscreteReinforceAgent(nn.Module, BaseAgent):
         self.net = create_mlp(
             sizes=[obs_dim] + hidden_sizes + [act_dim], hidden_activation=nn.ReLU
         )
-        self.optimizer = optim.Adam(self.parameters(), lr=0.001)
+        self.optimizer = optim.Adam(self.parameters(), lr=0.002)
 
         self.episode_reset()
 
@@ -73,18 +73,21 @@ class DiscreteReinforceAgent(nn.Module, BaseAgent):
         """
         self.rewards.append(reward)
 
-    def train(self, *, gamma):
+    def train(self, *, gamma, center_returns=True):
         """
         Performs a training step according to the REINFORCE algorithm.
 
         :param gamma: float, the discount factor to use
+        :param center_returns: bool, if True, center the returns (apply mena baseline)
         """
 
         returns = calculate_returns(self.rewards, gamma=gamma)
+        if center_returns:
+            returns -= returns.mean()
+
         log_probs = torch.stack(self.log_probs)
         loss = torch.sum(-log_probs * returns)
 
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        return loss.item()

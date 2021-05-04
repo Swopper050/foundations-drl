@@ -1,6 +1,10 @@
+import matplotlib.pyplot as plt
+import seaborn as sns
 from algorithms.base_trainer import BaseTrainer
 from algorithms.reinforce.discrete_reinforce_agent import \
     DiscreteReinforceAgent
+
+sns.set_style("darkgrid")
 
 
 class ReinforceTrainer(BaseTrainer):
@@ -21,6 +25,7 @@ class ReinforceTrainer(BaseTrainer):
 
         agent = self.create_agent(env)
 
+        episode_returns = []
         for episode in range(max_episodes):
             obs = env.reset()
             agent.episode_reset()
@@ -35,12 +40,12 @@ class ReinforceTrainer(BaseTrainer):
 
                 agent.store_step(reward)
 
-            loss = agent.train(gamma=self.gamma)
-            print(
-                "Episode {} -- loss={:.2f} -- return={}".format(
-                    episode, loss, episode_return
-                )
-            )
+            agent.train(gamma=self.gamma, center_returns=True)
+            print("Episode {} -- return={}".format(episode, episode_return))
+            episode_returns.append(episode_return)
+
+        sns.lineplot(x=list(range(max_episodes)), y=episode_returns)
+        plt.show()
 
     def create_agent(self, env):
         """
