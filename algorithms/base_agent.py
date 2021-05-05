@@ -16,3 +16,10 @@ class BaseAgent(ABC):
         :param observation: np.ndarray with the observation of the environment
         """
         raise NotImplementedError
+
+    def episode_reset(self):
+        """
+        Called before the start of an episode, can be overridden to do meaningful stuff
+        if needed.
+        """
+        pass
