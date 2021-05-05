@@ -15,7 +15,7 @@ git clone https://github.com/Swopper050/foundations-drl.git
 cd foundations-drl/
 pip install virtualenv
 python -m venv .env
-source ./bin/activate
+source .env/bin/activate
 pip install -r requirements.txt
 ```
 
