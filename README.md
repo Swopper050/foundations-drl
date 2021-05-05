@@ -21,6 +21,6 @@ pip install -r requirements.txt
 
 # Example run
 ```
-python train_agent --env-name CartPole-v0 --algorithm reinforce --save-name cartpolve_v0
+python train_agent --env-name CartPole-v0 --algorithm reinforce --save-name cartpole_v0
 python inspect_agent --env-name CartPole-v0 --agent-name cartpole_v0
 ```
