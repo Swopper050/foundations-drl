@@ -17,7 +17,14 @@ class ReinforceTrainer(BaseTrainer):
         self.gamma = gamma
 
     def train_agent(
-        self, *, env, train_every=5, max_episodes=1000, center_returns=True, render=True
+        self,
+        *,
+        env,
+        train_every=1,
+        max_episodes=1000,
+        center_returns=True,
+        render=True,
+        show_results=False
     ):
         """
         Trains an agent on the given environment following the REINFORCE algorithm.
@@ -27,6 +34,7 @@ class ReinforceTrainer(BaseTrainer):
         :param max_episodes: int, maximum number of episodes to gather/train on
         :param center_returns: bool, whether or not to apply mean baseline during training
         :param render: bool, whether or not to render the environment during training
+        :param show_results: bool, whether or not to show the results after training
         :returns: trained agent of type BaseAgent
         """
 
@@ -54,8 +62,11 @@ class ReinforceTrainer(BaseTrainer):
             episode_returns.append(episode_return)
             print("Episode {} -- return={}".format(episode, episode_return))
 
-        sns.lineplot(x=list(range(max_episodes)), y=episode_returns)
-        plt.show()
+        if show_results:
+            sns.lineplot(x=list(range(max_episodes)), y=episode_returns)
+            plt.show()
+
+        return agent
 
     def create_agent(self, env):
         """
