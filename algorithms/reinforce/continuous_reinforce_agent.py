@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from algorithms.base_agent import BaseAgent
+from algorithms.replay_memory import ReplayMemory
 from algorithms.utils import calculate_returns, create_mlp
 from torch.distributions import Normal
 
@@ -35,7 +36,16 @@ class ContinuousReinforceAgent(nn.Module, BaseAgent):
         self.log_std_layer = nn.Linear(hidden_sizes[-1], act_dim)
 
         self.optimizer = optim.Adam(self.parameters(), lr=0.002)
-        self.episode_reset()
+        self.memory = ReplayMemory(
+            experience_keys=[
+                "states",
+                "actions",
+                "log_probs",
+                "next_states",
+                "rewards",
+                "dones",
+            ]
+        )
 
     def forward(self, X):
         """
@@ -64,25 +74,30 @@ class ContinuousReinforceAgent(nn.Module, BaseAgent):
         std = torch.exp(torch.clamp(log_std, LOG_STD_MIN, LOG_STD_MAX))
         action_distribution = Normal(mu, std)
         action = mu if deterministic else action_distribution.rsample()
-        self.log_probs.append(action_distribution.log_prob(action))
+        self.prev_log_prob = action_distribution.log_prob(action)
         return action.detach().numpy()
 
-    def episode_reset(self):
-        """
-        Called at the start of an episode, which resets the memory of the
-        agent. All information gathered up until now will be discarded.
-        """
-        self.rewards = []
-        self.log_probs = []
-
-    def store_step(self, reward):
+    def store_step(self, obs, action, next_obs, reward, done):
         """
         Stores the information about a step. For REINFORCE, only the reward
         needs to be remembered (the logprob is already remembered earlier).
 
-        :param reward: float, current reward
+        :param state: np.ndarray with the state at time t
+        :param action: np.ndarray with the action at time t
+        :param next_state: np.ndarray with state at time t+1
+        :param reward: float with reward for this action
+        :param done: bool, whether or not the episode is done
         """
-        self.rewards.append(reward)
+        self.memory.store_experience(
+            {
+                "states": obs,
+                "actions": action,
+                "log_probs": self.prev_log_prob,
+                "next_states": next_obs,
+                "rewards": reward,
+                "dones": done,
+            }
+        )
 
     def train(self, *, gamma, center_returns=True):
         """
@@ -92,13 +107,20 @@ class ContinuousReinforceAgent(nn.Module, BaseAgent):
         :param center_returns: bool, if True, center the returns (apply mena baseline)
         """
 
-        returns = calculate_returns(self.rewards, gamma=gamma)
-        if center_returns:
-            returns -= returns.mean()
+        batch = self.memory.sample()
+        batch_size = len(batch["rewards"])
 
-        log_probs = torch.stack(self.log_probs)
-        loss = torch.sum(-log_probs * returns.view(-1, 1))
+        loss = torch.tensor(0, dtype=torch.float32)
+        for i in range(batch_size):
+            returns = calculate_returns(batch["rewards"][i], gamma=gamma)
+            if center_returns:
+                returns -= returns.mean()
+
+            log_probs = torch.stack(batch["log_probs"][i])
+            loss += torch.sum(-log_probs * returns.view(-1, 1)) / batch_size
 
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+
+        self.memory.reset()

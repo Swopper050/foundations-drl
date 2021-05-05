@@ -16,11 +16,14 @@ class ReinforceTrainer(BaseTrainer):
     def __init__(self, *, gamma=0.99):
         self.gamma = gamma
 
-    def train_agent(self, *, env, max_episodes=1000, center_returns=True, render=True):
+    def train_agent(
+        self, *, env, train_every=5, max_episodes=1000, center_returns=True, render=True
+    ):
         """
         Trains an agent on the given environment following the REINFORCE algorithm.
 
         :param env: gym.env to train an agent on
+        :param train_every: int, specifies to train after x episodes
         :param max_episodes: int, maximum number of episodes to gather/train on
         :param center_returns: bool, whether or not to apply mean baseline during training
         :param render: bool, whether or not to render the environment during training
@@ -30,22 +33,24 @@ class ReinforceTrainer(BaseTrainer):
         agent = self.create_agent(env)
 
         episode_returns = []
-        for episode in range(max_episodes):
+        for episode in range(1, max_episodes + 1):
             obs = env.reset()
-            agent.episode_reset()
             done = False
 
             episode_return = 0.0
             while not done:
                 action = agent.act(obs, deterministic=False)
-                obs, reward, done, _ = env.step(action)
+                next_obs, reward, done, _ = env.step(action)
                 episode_return += reward
-                agent.store_step(reward)
+                agent.store_step(obs, action, next_obs, reward, done)
+                obs = next_obs
 
                 if render:
                     env.render()
 
-            agent.train(gamma=self.gamma, center_returns=center_returns)
+            if episode % train_every == 0:
+                agent.train(gamma=self.gamma, center_returns=center_returns)
+
             episode_returns.append(episode_return)
             print("Episode {} -- return={}".format(episode, episode_return))
 
