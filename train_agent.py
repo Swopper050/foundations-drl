@@ -24,7 +24,7 @@ def get_trainer(algorithm_name):
 def main(args):
     env = gym.make(args.env_name)
     trainer = get_trainer(args.algorithm)
-    agent = trainer.train_agent(env=env, render=args.render, max_episodes=10)
+    agent = trainer.train_agent(env=env, render=args.render)
 
     if not os.path.exists("saved_agents"):
         os.makedirs("saved_agents")
