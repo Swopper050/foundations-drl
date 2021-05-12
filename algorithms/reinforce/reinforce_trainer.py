@@ -20,6 +20,7 @@ class ReinforceTrainer(BaseTrainer):
         self,
         *,
         env,
+        test_env,
         train_every=1,
         max_episodes=1000,
         center_returns=True,
@@ -30,6 +31,7 @@ class ReinforceTrainer(BaseTrainer):
         Trains an agent on the given environment following the REINFORCE algorithm.
 
         :param env: gym.env to train an agent on
+        :param test_env: gym.env to test an agent on
         :param train_every: int, specifies to train after x episodes
         :param max_episodes: int, maximum number of episodes to gather/train on
         :param center_returns: bool, whether or not to apply mean baseline during training
@@ -50,7 +52,7 @@ class ReinforceTrainer(BaseTrainer):
                 action = agent.act(obs, deterministic=False)
                 next_obs, reward, done, _ = env.step(action)
                 episode_return += reward
-                agent.store_step(obs, action, next_obs, reward, done)
+                agent.store_step(obs, action, reward, next_obs, done)
                 obs = next_obs
 
                 if render:

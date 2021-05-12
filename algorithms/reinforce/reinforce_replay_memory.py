@@ -1,4 +1,4 @@
-class ReplayMemory:
+class ReinforceReplayMemory:
     def __init__(self, *, experience_keys):
         """
         :param experience_keys: list with strings, specifying the keys

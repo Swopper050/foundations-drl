@@ -14,7 +14,7 @@ def main(args):
         done = False
 
         while not done:
-            obs, _, done, _ = env.step(agent.act(obs, deterministic=True))
+            obs, _, done, _ = env.step(agent.act(obs))
             env.render()
 
 
