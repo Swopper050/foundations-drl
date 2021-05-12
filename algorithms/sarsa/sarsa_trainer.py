@@ -4,6 +4,7 @@ import gym
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+
 from algorithms.base_trainer import BaseTrainer
 from algorithms.sarsa.sarsa_agent import SarsaAgent
 

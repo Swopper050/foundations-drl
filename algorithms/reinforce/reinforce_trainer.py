@@ -1,9 +1,9 @@
 import gym
 import matplotlib.pyplot as plt
 import seaborn as sns
+
 from algorithms.base_trainer import BaseTrainer
-from algorithms.reinforce import (ContinuousReinforceAgent,
-                                  DiscreteReinforceAgent)
+from algorithms.reinforce import ContinuousReinforceAgent, DiscreteReinforceAgent
 
 sns.set_style("darkgrid")
 
