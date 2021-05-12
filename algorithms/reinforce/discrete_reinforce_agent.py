@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from algorithms.base_agent import BaseAgent
-from algorithms.replay_memory import ReplayMemory
+from algorithms.reinforce.reinforce_replay_memory import ReinforceReplayMemory
 from algorithms.utils import calculate_returns, create_mlp
 from torch.distributions import Categorical
 
@@ -30,13 +30,13 @@ class DiscreteReinforceAgent(nn.Module, BaseAgent):
         )
         self.optimizer = optim.Adam(self.parameters(), lr=0.002)
 
-        self.memory = ReplayMemory(
+        self.memory = ReinforceReplayMemory(
             experience_keys=[
                 "states",
                 "actions",
                 "log_probs",
-                "next_states",
                 "rewards",
+                "next_states",
                 "dones",
             ]
         )
@@ -52,7 +52,7 @@ class DiscreteReinforceAgent(nn.Module, BaseAgent):
         """
         return self.net(X)
 
-    def act(self, observation, deterministic=False):
+    def act(self, observation, deterministic=True):
         """
         Determines an action based on the current policy.
 
@@ -67,15 +67,15 @@ class DiscreteReinforceAgent(nn.Module, BaseAgent):
         self.prev_log_prob = action_distribution.log_prob(action)
         return action.item()
 
-    def store_step(self, obs, action, next_obs, reward, done):
+    def store_step(self, obs, action, reward, next_obs, done):
         """
         Stores the information about a step. For REINFORCE, only the reward
         needs to be remembered (the logprob is already remembered earlier).
 
         :param state: np.ndarray with the state at time t
         :param action: np.ndarray with the action at time t
-        :param next_state: np.ndarray with state at time t+1
         :param reward: float with reward for this action
+        :param next_state: np.ndarray with state at time t+1
         :param done: bool, whether or not the episode is done
         """
         self.memory.store_experience(
@@ -83,8 +83,8 @@ class DiscreteReinforceAgent(nn.Module, BaseAgent):
                 "states": obs,
                 "actions": action,
                 "log_probs": self.prev_log_prob,
-                "next_states": next_obs,
                 "rewards": reward,
+                "next_states": next_obs,
                 "dones": done,
             }
         )

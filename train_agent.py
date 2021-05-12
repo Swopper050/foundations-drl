@@ -5,6 +5,7 @@ import gym
 import torch
 
 from algorithms.reinforce import ReinforceTrainer
+from algorithms.sarsa import SarsaTrainer
 
 
 def get_trainer(algorithm_name):
@@ -17,14 +18,17 @@ def get_trainer(algorithm_name):
 
     if algorithm_name == "reinforce":
         return ReinforceTrainer()
+    elif algorithm_name == "sarsa":
+        return SarsaTrainer()
 
     raise ValueError("Unknown algorithm {}".format(algorithm_name))
 
 
 def main(args):
     env = gym.make(args.env_name)
+    test_env = gym.make(args.env_name)
     trainer = get_trainer(args.algorithm)
-    agent = trainer.train_agent(env=env, render=args.render)
+    agent = trainer.train_agent(env=env, test_env=test_env, render=args.render)
 
     if not os.path.exists("saved_agents"):
         os.makedirs("saved_agents")
