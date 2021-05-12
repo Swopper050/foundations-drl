@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 
 
 class BaseTrainer(ABC):
-
     @abstractmethod
     def train_agent(self, *, env):
         """

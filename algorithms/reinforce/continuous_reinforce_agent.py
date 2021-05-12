@@ -2,10 +2,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.distributions import Normal
+
 from algorithms.base_agent import BaseAgent
 from algorithms.reinforce.reinforce_replay_memory import ReinforceReplayMemory
 from algorithms.utils import calculate_returns, create_mlp
-from torch.distributions import Normal
 
 LOG_STD_MAX = 2.0
 LOG_STD_MIN = -20.0

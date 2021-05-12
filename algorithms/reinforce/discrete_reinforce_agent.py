@@ -2,10 +2,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.distributions import Categorical
+
 from algorithms.base_agent import BaseAgent
 from algorithms.reinforce.reinforce_replay_memory import ReinforceReplayMemory
 from algorithms.utils import calculate_returns, create_mlp
-from torch.distributions import Categorical
 
 
 class DiscreteReinforceAgent(nn.Module, BaseAgent):
