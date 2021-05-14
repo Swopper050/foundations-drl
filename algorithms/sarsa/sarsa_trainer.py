@@ -1,10 +1,6 @@
-import copy
-
 import gym
-import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
-
 from algorithms.base_trainer import BaseTrainer
 from algorithms.sarsa.sarsa_agent import SarsaAgent
 
@@ -64,7 +60,7 @@ class SarsaTrainer(BaseTrainer):
                 env.render()
 
             if self.time_to(train_every, step):
-                agent.train(gamma=self.gamma)
+                agent.perform_training(gamma=self.gamma)
                 curr_epsilon = max(end_epsilon, curr_epsilon - epsilon_decay)
 
             if self.time_to(eval_every, step):

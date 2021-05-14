@@ -1,9 +1,9 @@
 import gym
 import matplotlib.pyplot as plt
 import seaborn as sns
-
 from algorithms.base_trainer import BaseTrainer
-from algorithms.reinforce import ContinuousReinforceAgent, DiscreteReinforceAgent
+from algorithms.reinforce import (ContinuousReinforceAgent,
+                                  DiscreteReinforceAgent)
 
 sns.set_style("darkgrid")
 
@@ -59,7 +59,7 @@ class ReinforceTrainer(BaseTrainer):
                     env.render()
 
             if episode % train_every == 0:
-                agent.train(gamma=self.gamma, center_returns=center_returns)
+                agent.perform_training(gamma=self.gamma, center_returns=center_returns)
 
             episode_returns.append(episode_return)
             print("Episode {} -- return={}".format(episode, episode_return))

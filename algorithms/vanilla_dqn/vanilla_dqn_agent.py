@@ -3,21 +3,34 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from algorithms.base_agent import BaseAgent
-from algorithms.sarsa.sarsa_replay_memory import SarsaReplayMemory
 from algorithms.utils import create_mlp
+from algorithms.vanilla_dqn.vanilla_dqn_replay_memory import \
+    VanillaDQNReplayMemory
+from torch.distributions import Categorical
 
 
-class SarsaAgent(nn.Module, BaseAgent):
+class VanillaDQNAgent(nn.Module, BaseAgent):
     """
-    Discrete REINFORCE agent, to be trained by the ReinforceTrainer on an
+    Vanilla DQN agent, to be trained by the VanillaDQNTrainer on an
     environment with discrete actions.
+    Selects actions according to a Boltzmann policy.
     """
 
-    def __init__(self, *, obs_dim, act_dim, hidden_sizes=[64], grad_clip=0.5):
+    def __init__(
+        self,
+        *,
+        obs_dim,
+        act_dim,
+        max_memory_size=10000,
+        hidden_sizes=[64],
+        grad_clip=0.5
+    ):
         """
         :param obs_dim: int, number of dimensions in the observation space
         :param act_dim: int, number of dimensions in the action space
+        :param max_memory_size: int, max number of experience to store in the memory
         :param hidden_sizes: list with ints, dimensions of the hidden layers
+        :param grad_clip: maximum value of the gradients during an update
         """
         super().__init__()
 
@@ -25,12 +38,13 @@ class SarsaAgent(nn.Module, BaseAgent):
         self.act_dim = act_dim
 
         self.net = create_mlp(
-            sizes=[obs_dim] + hidden_sizes + [act_dim], hidden_activation=nn.ReLU
+            sizes=[obs_dim] + hidden_sizes + [act_dim], hidden_activation=nn.SELU
         )
-        self.optimizer = optim.Adam(self.parameters(), lr=0.05)
+        self.optimizer = optim.Adam(self.parameters(), lr=0.01)
         self.criterion = nn.MSELoss()
 
-        self.memory = SarsaReplayMemory(
+        self.memory = VanillaDQNReplayMemory(
+            max_size=max_memory_size,
             experience_keys=[
                 "states",
                 "actions",
@@ -38,7 +52,7 @@ class SarsaAgent(nn.Module, BaseAgent):
                 "next_states",
                 "next_actions",
                 "dones",
-            ]
+            ],
         )
 
         for param in self.parameters():
@@ -55,24 +69,20 @@ class SarsaAgent(nn.Module, BaseAgent):
         """
         return self.net(X)
 
-    def act(self, observation, *, epsilon=0.0):
+    def act(self, observation, *, tau=0.001):
         """
         Determines an action based on the current q function.
 
         :param observation: np.ndarray with the current observation
-        :param epsilon: float, chance on a random action
+        :param tau: float, value that influences the sampling distribution.
         :returns: action, and possibly the logprobability of that action
         """
+        logits = self.forward(torch.from_numpy(observation.astype(np.float32)))
+        logits /= tau
+        action_distribution = Categorical(logits=logits)
+        return action_distribution.sample().item()
 
-        # Perform a random action
-        if epsilon > np.random.rand():
-            return np.random.randint(self.act_dim)
-        # Perform an action based on policy
-        else:
-            q_vals = self.forward(torch.from_numpy(observation.astype(np.float32)))
-            return torch.argmax(q_vals).item()
-
-    def store_step(self, obs, action, reward, next_obs, next_action, done):
+    def store_step(self, obs, action, reward, next_obs, done):
         """
         Stores the information about a step. As implied by its name, SARSA remembers:
             (state, action, reward, next_state, next_action)
@@ -81,7 +91,6 @@ class SarsaAgent(nn.Module, BaseAgent):
         :param action: np.ndarray with the action at time t
         :param reward: float with reward for action at time t
         :param next_state: np.ndarray with state at time t+1
-        :param next_action: np.ndarray with the action at time t+1
         :param done: bool, whether or not the episode is done
         """
         self.memory.store_experience(
@@ -90,37 +99,36 @@ class SarsaAgent(nn.Module, BaseAgent):
                 "actions": action,
                 "rewards": reward,
                 "next_states": next_obs,
-                "next_actions": next_action,
                 "dones": done,
             }
         )
 
-    def perform_training(self, *, gamma):
+    def perform_training(self, *, gamma, batch_size, n_updates):
         """
         Performs a training step according to the SARSA algorithm.
 
         :param gamma: float, the discount factor to use
+        :param batch_size: int, batch size to use
+        :param n_updates: int, number of times to perform an update with the batch
         """
 
-        batch = self.memory.sample()
+        batch = self.memory.sample(batch_size=batch_size)
+        states = batch["states"]
+        actions = batch["actions"].type(torch.int64)
+        rewards = batch["rewards"]
+        next_states = batch["next_states"]
+        dones = batch["dones"]
 
-        states = torch.as_tensor(batch["states"], dtype=torch.float32)
-        next_states = torch.as_tensor(batch["next_states"], dtype=torch.float32)
-        actions = torch.as_tensor(batch["actions"])
-        rewards = torch.as_tensor(batch["rewards"], dtype=torch.float32)
-        dones = torch.as_tensor(batch["dones"], dtype=torch.int8)
+        for _ in range(n_updates):
+            q_preds = self.forward(states)
+            with torch.no_grad():
+                next_q_preds = self.forward(next_states)
 
-        q_preds = self.forward(states)
-        with torch.no_grad():
-            next_q_preds = self.forward(next_states)
+            action_q_preds = q_preds.gather(-1, actions.unsqueeze(-1)).squeeze(-1)
+            optimal_action_q_preds, _ = next_q_preds.max(axis=1)
+            q_targets = rewards + (1 - dones) * gamma * optimal_action_q_preds
 
-        action_q_preds = q_preds.gather(-1, actions.unsqueeze(-1)).squeeze(-1)
-        next_action_q_preds = next_q_preds.gather(-1, actions.unsqueeze(-1)).squeeze(-1)
-        q_targets = rewards + (1 - dones) * gamma * next_action_q_preds
-
-        loss = self.criterion(action_q_preds, q_targets)
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
-
-        self.memory.reset()
+            loss = self.criterion(action_q_preds, q_targets)
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
