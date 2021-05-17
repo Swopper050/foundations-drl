@@ -6,6 +6,7 @@ import torch
 
 from algorithms.reinforce import ReinforceTrainer
 from algorithms.sarsa import SarsaTrainer
+from algorithms.vanilla_dqn import VanillaDQNTrainer
 
 
 def get_trainer(algorithm_name):
@@ -20,6 +21,8 @@ def get_trainer(algorithm_name):
         return ReinforceTrainer()
     elif algorithm_name == "sarsa":
         return SarsaTrainer()
+    elif algorithm_name == "vanilla_dqn":
+        return VanillaDQNTrainer()
 
     raise ValueError("Unknown algorithm {}".format(algorithm_name))
 
