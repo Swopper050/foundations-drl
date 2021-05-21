@@ -1,19 +1,19 @@
+import copy
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from algorithms.base_agent import BaseAgent
+from algorithms.dqn.prioritized_replay_memory import PrioritizedReplayMemory
 from algorithms.utils import create_mlp
-from algorithms.vanilla_dqn.vanilla_dqn_replay_memory import \
-    VanillaDQNReplayMemory
 from torch.distributions import Categorical
 
 
-class VanillaDQNAgent(nn.Module, BaseAgent):
+class DQNAgent(nn.Module, BaseAgent):
     """
-    Vanilla DQN agent, to be trained by the VanillaDQNTrainer on an
-    environment with discrete actions.
-    Selects actions according to a Boltzmann policy.
+    DQN agent, to be trained by the DQNTrainer on an environment with discrete
+    actions. Selects actions according to a Boltzmann policy.
     """
 
     def __init__(
@@ -23,7 +23,8 @@ class VanillaDQNAgent(nn.Module, BaseAgent):
         act_dim,
         max_memory_size=10000,
         hidden_sizes=[64],
-        grad_clip=0.5
+        grad_clip=0.5,
+        polyak_coef=0.995,
     ):
         """
         :param obs_dim: int, number of dimensions in the observation space
@@ -31,19 +32,26 @@ class VanillaDQNAgent(nn.Module, BaseAgent):
         :param max_memory_size: int, max number of experience to store in the memory
         :param hidden_sizes: list with ints, dimensions of the hidden layers
         :param grad_clip: maximum value of the gradients during an update
+        :param polyak_coef: float, polyak coefficient used to update the target networks
         """
         super().__init__()
 
         self.obs_dim = obs_dim
         self.act_dim = act_dim
+        self.polyak_coef = polyak_coef
 
         self.net = create_mlp(
             sizes=[obs_dim] + hidden_sizes + [act_dim], hidden_activation=nn.SELU
         )
-        self.optimizer = optim.Adam(self.parameters(), lr=0.01)
+
+        self.target_net = copy.deepcopy(self.net)
+        for param in self.target_net.parameters():
+            param.requires_grad = False
+
+        self.optimizer = optim.Adam(self.net.parameters(), lr=0.01)
         self.criterion = nn.MSELoss()
 
-        self.memory = VanillaDQNReplayMemory(
+        self.memory = PrioritizedReplayMemory(
             max_size=max_memory_size,
             experience_keys=[
                 "states",
@@ -54,7 +62,7 @@ class VanillaDQNAgent(nn.Module, BaseAgent):
             ],
         )
 
-        for param in self.parameters():
+        for param in self.net.parameters():
             param.register_hook(lambda grad: torch.clamp(grad, -grad_clip, grad_clip))
 
     def forward(self, X):
@@ -83,8 +91,8 @@ class VanillaDQNAgent(nn.Module, BaseAgent):
 
     def store_step(self, obs, action, reward, next_obs, done):
         """
-        Stores the information about a step. As implied by its name, SARSA remembers:
-            (state, action, reward, next_state, next_action)
+        Stores the information about a step. DQN remembers:
+            (state, action, reward, next_state)
 
         :param state: np.ndarray with the state at time t
         :param action: np.ndarray with the action at time t
@@ -104,7 +112,7 @@ class VanillaDQNAgent(nn.Module, BaseAgent):
 
     def perform_training(self, *, gamma, batch_size, n_updates):
         """
-        Performs a training step according to the SARSA algorithm.
+        Performs a training step according to the DQN algorithm.
 
         :param gamma: float, the discount factor to use
         :param batch_size: int, batch size to use
@@ -119,15 +127,30 @@ class VanillaDQNAgent(nn.Module, BaseAgent):
         dones = batch["dones"]
 
         for _ in range(n_updates):
-            q_preds = self.forward(states)
+            q_preds = self.net(states)
             with torch.no_grad():
-                next_q_preds = self.forward(next_states)
+                next_q_preds = self.net(next_states)
+                target_next_q_preds = self.target_net(next_states)
 
             action_q_preds = q_preds.gather(-1, actions.unsqueeze(-1)).squeeze(-1)
-            optimal_action_q_preds, _ = next_q_preds.max(axis=1)
-            q_targets = rewards + (1 - dones) * gamma * optimal_action_q_preds
+            next_actions = next_q_preds.argmax(dim=-1, keepdims=True)
+            next_act_q_preds = target_next_q_preds.gather(-1, next_actions).squeeze(-1)
+            action_q_targets = rewards + (1 - dones) * gamma * next_act_q_preds
 
-            loss = self.criterion(action_q_preds, q_targets)
+            loss = self.criterion(action_q_preds, action_q_targets)
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
+
+            batch_errors = (action_q_targets - action_q_preds.detach()).abs().numpy()
+            self.memory.update_priorities(batch_errors)
+
+        self.update_target_network()
+
+    def update_target_network(self):
+        with torch.no_grad():
+            for param, target_param in zip(
+                self.net.parameters(), self.target_net.parameters()
+            ):
+                target_param.data.mul_(self.polyak_coef)
+                target_param.data.add_((1 - self.polyak_coef) * param.data)

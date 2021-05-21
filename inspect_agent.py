@@ -13,9 +13,12 @@ def main(args):
         agent.episode_reset()
         done = False
 
+        total_reward = 0
         while not done:
-            obs, _, done, _ = env.step(agent.act(obs))
+            obs, reward, done, _ = env.step(agent.act(obs))
+            total_reward += reward
             env.render()
+        print(total_reward)
 
 
 if __name__ == "__main__":
