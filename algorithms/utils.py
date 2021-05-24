@@ -25,12 +25,12 @@ def calculate_returns(rewards, *, gamma):
 def create_mlp(sizes, hidden_activation, output_activation=nn.Identity):
     """
     Creates a simple Multi-Layer Perceptron (MLP) with the given architecture.
-    Every layer except the last layer will have the given hidden activation function.
-    The last layer can have a custom activation function, where the default is the
-    identity function.
+    Every layer except the last layer will have the given hidden activation
+    function. The last layer can have a custom activation function, where the
+    default activation is the identity function.
 
-    :param hidden_sizes: list of integers, specifying the sizes of the hidden layers
-    :param hidden_activation: torch activation function to use for hidden layers
+    :param hidden_sizes: list of integers, specifying the hidden layers sizes
+    :param hidden_activation: activation function to use for hidden layers
     :param output_activation: activation function to use for the output layer
     :returns: nn.Sequential network
     """

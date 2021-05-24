@@ -1,4 +1,12 @@
 class SarsaReplayMemory:
+    """
+    Replay Memory used by the SARSA algorithm. As SARSA is an on-policy
+    algorithm, it can not use experiences from before the previous update.
+
+    It stores experiences individually from their episode, i.e. simply a
+    dictionary with experiences for every step in the memory.
+    """
+
     def __init__(self, *, experience_keys):
         """
         :param experience_keys: list with strings, specifying the keys
@@ -23,9 +31,9 @@ class SarsaReplayMemory:
 
     def sample(self):
         """
-        Samples the experience from memory, consisting of all fully collected
+        Samples the experience from memory, consisting of all collected
         episodes up until now.
 
-        :returns: dict with for every experience key their values for a number of episodes
+        :returns: dict with for every key their values currently in memory
         """
         return self.memory

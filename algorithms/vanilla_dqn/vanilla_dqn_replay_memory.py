@@ -6,6 +6,15 @@ import torch
 
 
 class VanillaDQNReplayMemory:
+    """
+    Replay Memory used by the Vanilla DQN algorithm. Stores experiences
+    individually, and when sampled returns a batch of torch.tensors with
+    experiences. Uses a FIFO deque structure to store experiences, which
+    deletes the oldest experiences for new experiences when memory is full.
+
+    Sampling is randomly.
+    """
+
     def __init__(self, *, max_size, experience_keys):
         """
         :param max_size: int, max number of experience to store in the memory

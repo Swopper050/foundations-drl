@@ -1,9 +1,11 @@
 import gym
-import matplotlib.pyplot as plt
 import seaborn as sns
+
 from algorithms.base_trainer import BaseTrainer
-from algorithms.reinforce import (ContinuousReinforceAgent,
-                                  DiscreteReinforceAgent)
+from algorithms.reinforce import (
+    ContinuousReinforceAgent,
+    DiscreteReinforceAgent,
+)
 
 sns.set_style("darkgrid")
 
@@ -11,6 +13,7 @@ sns.set_style("darkgrid")
 class ReinforceTrainer(BaseTrainer):
     """
     Helper class for training an agent using the REINFORCE algorithm.
+    Implements the main training loop for training a REINFORCE agent.
     """
 
     def __init__(self, *, gamma=0.99):
@@ -25,24 +28,25 @@ class ReinforceTrainer(BaseTrainer):
         max_episodes=1000,
         center_returns=True,
         render=True,
-        show_results=False
     ):
         """
-        Trains an agent on the given environment following the REINFORCE algorithm.
+        Trains an agent on the given environment according to REINFORCE.
+        The steps consist of the following:
+            1) Create an agent given the environment
+            2) Gather 'train_every' episodes of experience
+            3) Train the agent with these episodes
 
         :param env: gym.env to train an agent on
         :param test_env: gym.env to test an agent on
         :param train_every: int, specifies to train after x episodes
         :param max_episodes: int, maximum number of episodes to gather/train on
-        :param center_returns: bool, whether or not to apply mean baseline during training
-        :param render: bool, whether or not to render the environment during training
-        :param show_results: bool, whether or not to show the results after training
+        :param center_returns: bool, if True, centers the returns for training
+        :param render: bool, if True, renders the environment while training
         :returns: trained agent of type BaseAgent
         """
 
         agent = self.create_agent(env)
 
-        episode_returns = []
         for episode in range(1, max_episodes + 1):
             obs = env.reset()
             done = False
@@ -59,22 +63,18 @@ class ReinforceTrainer(BaseTrainer):
                     env.render()
 
             if episode % train_every == 0:
-                agent.perform_training(gamma=self.gamma, center_returns=center_returns)
+                agent.perform_training(
+                    gamma=self.gamma, center_returns=center_returns
+                )
 
-            episode_returns.append(episode_return)
             print("Episode {} -- return={}".format(episode, episode_return))
-
-        if show_results:
-            sns.lineplot(x=list(range(max_episodes)), y=episode_returns)
-            plt.show()
-
         return agent
 
     def create_agent(self, env):
         """
-        Given a specific environment, creates an agent specific for this environment.
-        It checks whether the agent requires continuous or discrete actions, and then
-        creates an agent accordingly
+        Given a specific environment, creates an agent specific for this
+        environment. It checks whether the agent requires continuous or
+        discrete actions, and then creates an agent accordingly.
 
         :param env: gym.env to create an agent for
         :returns: ContinuousReinforceAgent or DiscreteReinforceAgent
