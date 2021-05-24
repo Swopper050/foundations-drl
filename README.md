@@ -38,4 +38,4 @@ The replay memory is used to store experiences observed by the agent while it in
 This class will hold the memory, the neural network(s) and the functionality of training itself. The docs will explain what the agent will do during training, and how it behaves. It will be able to act based on an observation: `agent.act(observation)`. It must be able to perform a training step (which will be called for by the Trainer). Furthermore it most be able to store a step, i.e. gather experience. The Agent will hold the details of training.
 
 ## Trainer
-The Trainer will simply implement the last layer, and implements the training loop. Its structure is often close to the pseudocode of the algorithms encountered in the literature.
+The Trainer will simply implement the training loop of the algorithm. Its structure is often close to the pseudocode of the algorithms encountered in the literature. It will alternate between letting the Agent gather experience, and call the training method of the Agent. Sometimes it manages hyperparameters that are for example relevant for exploration.
