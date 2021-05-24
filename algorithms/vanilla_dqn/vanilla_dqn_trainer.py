@@ -1,6 +1,6 @@
 import gym
-import numpy as np
 import seaborn as sns
+
 from algorithms.base_trainer import BaseTrainer
 from algorithms.vanilla_dqn.vanilla_dqn_agent import VanillaDQNAgent
 
@@ -9,7 +9,8 @@ sns.set_style("darkgrid")
 
 class VanillaDQNTrainer(BaseTrainer):
     """
-    Helper class for training an agent using the SARSA algorithm.
+    Helper class for training an agent using the Vanilla DQN algorithm.
+    Implements the main training loop for Vanilla DQN.
     """
 
     def __init__(self, *, gamma=0.9):
@@ -34,30 +35,50 @@ class VanillaDQNTrainer(BaseTrainer):
         render=True,
     ):
         """
-        Trains an agent on the given environment following the REINFORCE algorithm.
+        Trains an agent on the given environment following the Vanilla DQN
+        algorithm. First creates an agent, then follows the loop:
+            1) Gather a number of experiences
+            2) Sample a number of batches
+            3) Perform a number of updates for every batch
+            4) Decreases tau
+            5) When time, evaluate the agent
 
         :param env: gym.env to train an agent on
         :param test_env: gym.env to test an agent on
+        :param max_steps: int, maximum number of steps to gather for training
+        :param n_init_steps: int, initial number of experiences to gather
         :param train_every: int, specifies to train after x steps
         :param eval_every: int, evaluates every x steps
-        :param max_stpes: int, maximum number of steps to gather/train
-        :param render: bool, whether or not to render the environment during training
-        :param show_results: bool, whether or not to show the results after training
+        :param n_batches_per_train_step: int, number of batches per train step
+        :param n_updates_per_batch: int, number of updates per batch
+        :param batch_size: int, size of batches to sample
+        :param start_tau: float, start value of tau (Boltzmann policy)
+        :param end_tau: float, end value of tau
+        :param tau_decay_steps: int, number of steps to take to decrease tau
+        :param render: bool, if True, renders the environment during training
         :returns: trained agent of type BaseAgent
         """
 
+        # Create agent and initialize tau
         agent = self.create_agent(env)
         curr_tau = start_tau
         tau_decay = self.get_decay_value(start_tau, end_tau, tau_decay_steps)
 
+        # Gather initial experience
         self.gather_experience(
             env, agent, curr_tau, n_steps_to_gather=n_init_steps, render=render
         )
+
         loops = int((max_steps - n_init_steps) / train_every)
         for loop in range(1, loops):
             self.gather_experience(
-                env, agent, curr_tau, n_steps_to_gather=train_every, render=render
+                env,
+                agent,
+                curr_tau,
+                n_steps_to_gather=train_every,
+                render=render,
             )
+
             for _ in range(n_batches_per_train_step):
                 agent.perform_training(
                     gamma=self.gamma,
@@ -74,7 +95,18 @@ class VanillaDQNTrainer(BaseTrainer):
 
         return agent
 
-    def gather_experience(self, env, agent, curr_tau, *, n_steps_to_gather, render):
+    def gather_experience(
+        self, env, agent, curr_tau, *, n_steps_to_gather, render
+    ):
+        """
+        Gathers a number of experiences in the given environment.
+
+        :param env: gym.env to gather experiences from
+        :param agent: agent to use to act in the env
+        :param curr_tau: float, current tau for action selection
+        :param n_steps_to_gather: int, number of steps to gather
+        :param render: bool, if True, renders the environment
+        """
 
         if self.obs is None:
             self.obs = env.reset()
@@ -85,36 +117,13 @@ class VanillaDQNTrainer(BaseTrainer):
             next_obs, reward, done, _ = env.step(action)
             agent.store_step(self.obs, action, reward, next_obs, done)
             self.obs = next_obs
+
             if render:
                 env.render()
 
             if done:
                 self.obs = env.reset()
-
             n_steps_seen += 1
-
-    @staticmethod
-    def time_to(every, step):
-        return (step % every) == 0
-
-    @staticmethod
-    def get_decay_value(start, end, steps):
-        return (start - end) / steps
-
-    def evaluate_agent(self, agent, env, tau, n_eval_episodes=10):
-        """
-        Evaluates the performance of the agent.
-        """
-        returns = []
-        for _ in range(n_eval_episodes):
-            ret = 0.0
-            obs = env.reset()
-            done = False
-            while not done:
-                obs, reward, done, _ = env.step(agent.act(obs, tau=tau))
-                ret += reward
-            returns.append(ret)
-        print("Evaluated agent. Mean return: {}".format(np.mean(returns)))
 
     def create_agent(self, env):
         """
@@ -132,4 +141,6 @@ class VanillaDQNTrainer(BaseTrainer):
                 hidden_sizes=[64],
             )
 
-        raise ValueError("Vanilla DQN can only be used for discrete action spaces.")
+        raise ValueError(
+            "Vanilla DQN can only be used for discrete action spaces."
+        )
