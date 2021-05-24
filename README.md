@@ -24,3 +24,18 @@ pip install -r requirements.txt
 python train_agent.py --env-name CartPole-v0 --algorithm reinforce --save-name cartpole_v0
 python inspect_agent.py --env-name CartPole-v0 --agent-name cartpole_v0
 ```
+
+# Architecture
+In general there are three main components for an algorithm that are implemented:
+ - ReplayMemory
+ - Agent
+ - Trainer
+
+## Replay Memory
+The replay memory is used to store experiences observed by the agent while it interacts in the environment. For replay memory, it matters whether or not the algorithm is on-policy or off-policy. For on-policy algorithms, all experiences need to be discraded after an update. For off-policy, this is not the case.
+
+## Agent
+This class will hold the memory, the neural network(s) and the functionality of training itself. The docs will explain what the agent will do during training, and how it behaves. It will be able to act based on an observation: `agent.act(observation)`. It must be able to perform a training step (which will be called for by the Trainer). Furthermore it most be able to store a step, i.e. gather experience. The Agent will hold the details of training.
+
+## Trainer
+The Trainer will simply implement the last layer, and implements the training loop. Its structure is often close to the pseudocode of the algorithms encountered in the literature.
