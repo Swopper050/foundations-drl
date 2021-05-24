@@ -43,10 +43,31 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--env-name", type=str, required=True)
-    parser.add_argument("--algorithm", type=str, required=True)
-    parser.add_argument("--render", default=False, action="store_true")
-    parser.add_argument("--save-name", type=str, default="test_agent")
+    parser.add_argument(
+        "--env-name",
+        type=str,
+        required=True,
+        help="Gym environment to train an agent for",
+    )
+    parser.add_argument(
+        "--algorithm",
+        type=str,
+        required=True,
+        choices=["reinforce", "sarsa", "vanilla_dqn", "dqn"],
+        help="Algorithm to use for training an agent",
+    )
+    parser.add_argument(
+        "--render",
+        default=False,
+        action="store_true",
+        help="Whether or not to render the environment during training",
+    )
+    parser.add_argument(
+        "--save-name",
+        type=str,
+        default="test_agent",
+        help="Name to save the agent with after training",
+    )
     args = parser.parse_args()
 
     main(args)
