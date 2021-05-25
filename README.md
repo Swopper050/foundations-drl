@@ -1,6 +1,6 @@
 # Foundations Deep Reinforcement Learning
 
-Implementing the base algorithms of Deep Reinforcement Learning in Python. The goal of this repository is not to create a package whose algorithms
+The goal of this repository is not to create a package whose algorithms
 can be used as efficiently and generally as possible. Instead, the goal is to create a package with most core Reinforcement Learning algorithms
 implemented separately, solely for study purposes. Therefore, there are almost no modular components, such that the code for all algorithms can be
 studied independent of each other. Furthermore comments are placed at core steps. The code base is meant as a reference when implementing the algorithms
