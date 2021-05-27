@@ -22,6 +22,35 @@ def calculate_returns(rewards, *, gamma):
     return torch.from_numpy(returns)
 
 
+def estimate_generalized_advantages(
+    rewards, dones, value_preds, gamma, exp_weight
+):
+    """
+    Estimates the generalized Advantage (GAE) for the episodes in the batch.
+    This makes the important assumption that the rewards are in order, i.e.
+    reward[1] followed reward[0].
+
+    :param rewards: torch.tensor with rewards for one or more episodes
+    :param dones: torch.tensor with dones (0 or 1) for on or more episodes
+    :param value_preds: torch.tensor with predicted values for all steps
+    :param gamma: float, discount value
+    :param exp_weight: lambda in the GAE expression
+    """
+    gaes = torch.zeros_like(rewards)
+    # Last step is terminal, hence the following values are 0 at the last step
+    future_gae = torch.tensor(0.0, dtype=torch.float32)
+    future_value = torch.tensor(0.0, dtype=torch.float32)
+
+    for i in reversed(range(len(rewards))):
+        delta = (
+            rewards[i] + gamma * future_value * (1 - dones[i]) - value_preds[i]
+        )
+        gaes[i] = delta + gamma * exp_weight * (1 - dones[i]) * future_gae
+        future_gae = gaes[i]
+        future_value = value_preds[i]
+    return gaes
+
+
 def create_mlp(sizes, hidden_activation, output_activation=nn.Identity):
     """
     Creates a simple Multi-Layer Perceptron (MLP) with the given architecture.

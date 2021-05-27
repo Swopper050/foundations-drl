@@ -4,6 +4,7 @@ import os
 import gym
 import torch
 
+from algorithms.a2c import A2CTrainer
 from algorithms.dqn import DQNTrainer
 from algorithms.reinforce import ReinforceTrainer
 from algorithms.sarsa import SarsaTrainer
@@ -26,6 +27,8 @@ def get_trainer(algorithm_name):
         return VanillaDQNTrainer()
     elif algorithm_name == "dqn":
         return DQNTrainer()
+    elif algorithm_name == "a2c":
+        return A2CTrainer()
 
     raise ValueError("Unknown algorithm {}".format(algorithm_name))
 
@@ -53,7 +56,7 @@ if __name__ == "__main__":
         "--algorithm",
         type=str,
         required=True,
-        choices=["reinforce", "sarsa", "vanilla_dqn", "dqn"],
+        choices=["reinforce", "sarsa", "vanilla_dqn", "dqn", "a2c"],
         help="Algorithm to use for training an agent",
     )
     parser.add_argument(
