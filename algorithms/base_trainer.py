@@ -10,12 +10,10 @@ class BaseTrainer(ABC):
     """
 
     @abstractmethod
-    def train_agent(self, *, env):
+    def train_agent(self):
         """
         Method that creates and trains an agent according to the given
         algorithm. Should return an trained agent of type BaseAgent.
-
-        :param env: environment to train on
         """
         raise NotImplementedError
 

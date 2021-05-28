@@ -1,10 +1,8 @@
 import gym
-import seaborn as sns
+import torch
 
 from algorithms.base_trainer import BaseTrainer
 from algorithms.dqn.dqn_agent import DQNAgent
-
-sns.set_style("darkgrid")
 
 
 class DQNTrainer(BaseTrainer):
@@ -23,6 +21,7 @@ class DQNTrainer(BaseTrainer):
         *,
         env,
         test_env,
+        save_name,
         max_steps=10000,
         n_init_steps=32,
         train_every=4,
@@ -46,6 +45,7 @@ class DQNTrainer(BaseTrainer):
 
         :param env: gym.env to train an agent on
         :param test_env: gym.env to test an agent on
+        :param save_name: str, name to save the agent under
         :param max_steps: int, maximum number of steps to gather for training
         :param n_init_steps: int, initial number of experiences to gather
         :param train_every: int, specifies to train after x steps
@@ -90,6 +90,7 @@ class DQNTrainer(BaseTrainer):
 
             if self.time_to(int(eval_every / train_every), loop):
                 self.evaluate_agent(agent, test_env)
+                torch.save(agent, f"saved_agents/{save_name}")
 
             print(
                 "N frames seen {}".format(loop * train_every + n_init_steps),

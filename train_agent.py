@@ -6,6 +6,7 @@ import torch
 
 from algorithms.a2c import A2CTrainer
 from algorithms.dqn import DQNTrainer
+from algorithms.ppo import PPOTrainer
 from algorithms.reinforce import ReinforceTrainer
 from algorithms.sarsa import SarsaTrainer
 from algorithms.vanilla_dqn import VanillaDQNTrainer
@@ -29,6 +30,8 @@ def get_trainer(algorithm_name):
         return DQNTrainer()
     elif algorithm_name == "a2c":
         return A2CTrainer()
+    elif algorithm_name == "ppo":
+        return PPOTrainer()
 
     raise ValueError("Unknown algorithm {}".format(algorithm_name))
 
@@ -37,10 +40,16 @@ def main(args):
     env = gym.make(args.env_name)
     test_env = gym.make(args.env_name)
     trainer = get_trainer(args.algorithm)
-    agent = trainer.train_agent(env=env, test_env=test_env, render=args.render)
 
     if not os.path.exists("saved_agents"):
         os.makedirs("saved_agents")
+
+    agent = trainer.train_agent(
+        env=env,
+        test_env=test_env,
+        save_name=args.save_name,
+        render=args.render,
+    )
     torch.save(agent, f"saved_agents/{args.save_name}")
 
 
@@ -56,7 +65,7 @@ if __name__ == "__main__":
         "--algorithm",
         type=str,
         required=True,
-        choices=["reinforce", "sarsa", "vanilla_dqn", "dqn", "a2c"],
+        choices=["reinforce", "sarsa", "vanilla_dqn", "dqn", "a2c", "ppo"],
         help="Algorithm to use for training an agent",
     )
     parser.add_argument(
