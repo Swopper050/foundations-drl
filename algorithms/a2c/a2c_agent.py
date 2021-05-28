@@ -1,14 +1,62 @@
-import itertools
-
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.distributions import Categorical
+from torch.distributions import Categorical, Normal
 
 from algorithms.a2c.a2c_replay_memory import A2CReplayMemory
 from algorithms.base_agent import BaseAgent
 from algorithms.utils import create_mlp, estimate_generalized_advantages
+
+MIN_LOG_STD = -20.0
+""" Min value for the log standard deviation of the Continuous Actor. """
+
+MAX_LOG_STD = 2.0
+""" Max value for the log standard deviation of the Continuous Actor. """
+
+
+class ContinuousActor(nn.Module):
+    """
+    Continuous Actor class which maps observations to parameterized action
+    distributions. It is an MLP with two output layers. One layer outputs the
+    means for all actions, the other layer outputs the log standard deviation
+    for all layers. It assumes the actions can be described by Gaussians.
+    """
+
+    def __init__(self, obs_dim, act_dim, hidden_sizes, grad_clip):
+        """
+        :param obs_dim: int, number of dimensions in the observation space
+        :param act_dim: int, number of dimensions in the action space
+        :param hidden_sizes: list with ints, sizes of the hidden layers
+        :param grad_clip: float, max value of a gradient
+        """
+        super().__init__()
+        sizes = [obs_dim] + hidden_sizes
+        self.net = create_mlp(
+            sizes=sizes, hidden_activation=nn.ReLU, output_activation=nn.ReLU
+        )
+        self.mu_layer = nn.Linear(sizes[-1], act_dim)
+        self.std_layer = nn.Linear(sizes[-1], act_dim)
+
+        for param in self.parameters():
+            param.register_hook(
+                lambda grad: torch.clamp(grad, -grad_clip, grad_clip)
+            )
+
+    def forward(self, obs):
+        """
+        Performs a forward pass through the network. Returns means and
+        standard deviations for all action dimensions.
+
+        :param obs: torch.tensor with a batch of observations
+        :returns: torch.tensor with the means and one with std deviations
+        """
+        net_out = self.net(obs)
+        mu = self.mu_layer(net_out)
+        std_dev = torch.exp(
+            torch.clamp(self.std_layer(net_out), MIN_LOG_STD, MAX_LOG_STD)
+        )
+        return mu, std_dev
 
 
 class DiscreteActor(nn.Module):
@@ -131,11 +179,13 @@ class A2CAgent(BaseAgent):
 
         self.obs_dim = obs_dim
         self.act_dim = act_dim
+        self.discrete = discrete
 
-        self.actor = DiscreteActor(obs_dim, act_dim, hidden_sizes, grad_clip)
+        actor_class = DiscreteActor if discrete else ContinuousActor
+        self.actor = actor_class(obs_dim, act_dim, hidden_sizes, grad_clip)
         self.critic = ValueNetwork(obs_dim, hidden_sizes, grad_clip)
-        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=0.001)
-        self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=0.001)
+        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=0.01)
+        self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=0.01)
         self.critic_criterion = nn.MSELoss()
 
         self.memory = A2CReplayMemory(
@@ -157,19 +207,39 @@ class A2CAgent(BaseAgent):
         :param with_logprob: bool, if True returns the logprob as well
         :returns: action
         """
-        with torch.no_grad():
-            logits = self.actor.forward(
-                torch.from_numpy(obs.astype(np.float32))
-            )
-        action_distribution = Categorical(logits=logits)
-        if deterministic:
-            # Choose the action with the highest activation
-            action = torch.argmax(logits)
-        else:
-            # Sample randomly using the probabilities
-            action = action_distribution.sample()
 
-        return action.item()
+        # In the case of an environment with discrete actions
+        if self.discrete:
+            with torch.no_grad():
+                logits = self.actor.forward(
+                    torch.from_numpy(obs.astype(np.float32))
+                )
+
+            if deterministic:
+                # Choose the action with the highest activation
+                action = torch.argmax(logits).item()
+            else:
+                # Sample randomly using the probabilities
+                action_distribution = Categorical(logits=logits)
+                action = action_distribution.sample().item()
+
+        # In the case of an environment with continuous actions
+        else:
+            with torch.no_grad():
+                mu, std_dev = self.actor.forward(
+                    torch.from_numpy(obs.astype(np.float32))
+                )
+
+            if deterministic:
+                # Use the means as action (most likely actions)
+                action = mu.numpy()
+            else:
+                # Sample randomly using the distribution that follows
+                # from the parameters.
+                action_distribution = Normal(mu, std_dev)
+                action = action_distribution.sample().numpy()
+
+        return action
 
     def store_step(self, obs, action, reward, next_obs, done):
         """
@@ -239,10 +309,21 @@ class A2CAgent(BaseAgent):
         :param batch: dict with torch.tensors with values for the batch
         :param advantages: torch.tensor with advantage values for the batch
         """
-        action_distributions = Categorical(
-            logits=self.actor.forward(batch["states"])
-        )
+        # If the Actor is discrete, retrieve the PMFs for all states
+        if self.discrete:
+            action_distributions = Categorical(
+                logits=self.actor.forward(batch["states"])
+            )
+
+        # If the Actor is continuous, retrieve the Normal distributions
+        # for all states
+        else:
+            action_distributions = Normal(*self.actor.forward(batch["states"]))
+
+        # Get the log probability of every action using the distributions
         log_probs = action_distributions.log_prob(batch["actions"])
+
+        # Calculate the loss for the actor, and possibly add entropy loss
         actor_loss = -1 * (advantages * log_probs).mean()
         if self.entropy_weight > 0.0:
             actor_loss -= (

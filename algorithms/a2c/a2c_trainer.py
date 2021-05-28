@@ -15,7 +15,7 @@ class A2CTrainer(BaseTrainer):
         *,
         env,
         test_env,
-        max_episodes=int(1e3),
+        max_episodes=int(1e6),
         train_every=5,
         render=True,
     ):
@@ -36,6 +36,7 @@ class A2CTrainer(BaseTrainer):
 
         agent = self.create_agent(env)
 
+        n_steps_seen = 0
         for episode in range(1, max_episodes + 1):
             obs = env.reset()
             done = False
@@ -44,6 +45,7 @@ class A2CTrainer(BaseTrainer):
             while not done:
                 action = agent.act(obs, deterministic=False)
                 next_obs, reward, done, _ = env.step(action)
+                n_steps_seen += 1
                 episode_return += reward
                 agent.store_step(obs, action, reward, next_obs, done)
                 obs = next_obs
@@ -85,6 +87,6 @@ class A2CTrainer(BaseTrainer):
         return A2CAgent(
             obs_dim=env.observation_space.shape[0],
             act_dim=act_dim,
-            hidden_sizes=[64],
+            hidden_sizes=[128, 64],
             discrete=discrete,
         )
