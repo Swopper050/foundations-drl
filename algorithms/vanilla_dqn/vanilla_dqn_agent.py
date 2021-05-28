@@ -104,7 +104,7 @@ class VanillaDQNAgent(nn.Module, BaseAgent):
 
         :param observation: np.ndarray with the current observation
         :param tau: float, value that influences the sampling distribution.
-        :returns: action, and possibly the logprobability of that action
+        :returns: action
         """
         q_vals = self.forward(torch.from_numpy(observation.astype(np.float32)))
         q_vals /= tau
