@@ -322,6 +322,8 @@ class A2CAgent(BaseAgent):
 
         # Get the log probability of every action using the distributions
         log_probs = action_distributions.log_prob(batch["actions"])
+        if not self.discrete:
+            log_probs = log_probs.sum(axis=-1)
 
         # Calculate the loss for the actor, and possibly add entropy loss
         actor_loss = -1 * (advantages * log_probs).mean()
