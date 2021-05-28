@@ -1,4 +1,5 @@
 import gym
+import torch
 
 from algorithms.a2c import A2CAgent
 from algorithms.base_trainer import BaseTrainer
@@ -15,7 +16,8 @@ class A2CTrainer(BaseTrainer):
         *,
         env,
         test_env,
-        max_episodes=int(1e6),
+        save_name,
+        max_episodes=int(1e4),
         train_every=5,
         render=True,
     ):
@@ -28,6 +30,7 @@ class A2CTrainer(BaseTrainer):
 
         :param env: gym.env to train an agent on
         :param test_env: gym.env to test an agent on
+        :param save_name: str, name to save the agent under
         :param max_episodes: int, maximum number of episodes to gather/train on
         :param train_every: int, specifies to train after x episodes
         :param render: bool, if True, renders the environment while training
@@ -56,6 +59,8 @@ class A2CTrainer(BaseTrainer):
             if episode % train_every == 0:
                 agent.perform_training()
                 self.evaluate_agent(agent, test_env, n_eval_episodes=5)
+                torch.save(agent, f"saved_agents/{save_name}")
+
             print(
                 "Episode {}/{} -- return={}".format(
                     episode, max_episodes, episode_return

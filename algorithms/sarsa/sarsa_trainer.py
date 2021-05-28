@@ -1,10 +1,8 @@
 import gym
-import seaborn as sns
+import torch
 
 from algorithms.base_trainer import BaseTrainer
 from algorithms.sarsa.sarsa_agent import SarsaAgent
-
-sns.set_style("darkgrid")
 
 
 class SarsaTrainer(BaseTrainer):
@@ -21,6 +19,7 @@ class SarsaTrainer(BaseTrainer):
         *,
         env,
         test_env,
+        save_name,
         train_every=32,
         eval_every=1000,
         max_steps=100000,
@@ -38,6 +37,7 @@ class SarsaTrainer(BaseTrainer):
 
         :param env: gym.env to train an agent on
         :param test_env: gym.env to test an agent on
+        :param save_name: str, name to save the agent under
         :param train_every: int, specifies to train after x steps
         :param eval_every: int, evaluates every x steps
         :param max_stpes: int, maximum number of steps to gather/train
@@ -72,6 +72,7 @@ class SarsaTrainer(BaseTrainer):
 
             if self.time_to(eval_every, step):
                 self.evaluate_agent(agent, test_env, end_epsilon)
+                torch.save(agent, f"saved_agents/{save_name}")
 
             if done:
                 obs = env.reset()

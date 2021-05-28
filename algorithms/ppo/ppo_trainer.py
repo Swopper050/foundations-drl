@@ -2,20 +2,14 @@ import gym
 import torch
 
 from algorithms.base_trainer import BaseTrainer
-from algorithms.reinforce import (
-    ContinuousReinforceAgent,
-    DiscreteReinforceAgent,
-)
+from algorithms.ppo import PPOAgent
 
 
-class ReinforceTrainer(BaseTrainer):
+class PPOTrainer(BaseTrainer):
     """
-    Helper class for training an agent using the REINFORCE algorithm.
-    Implements the main training loop for training a REINFORCE agent.
+    Helper class for training an PPOAgent. Implements the main
+    training loop of the PPO algorithm.
     """
-
-    def __init__(self, *, gamma=0.99):
-        self.gamma = gamma
 
     def train_agent(
         self,
@@ -23,30 +17,31 @@ class ReinforceTrainer(BaseTrainer):
         env,
         test_env,
         save_name,
-        train_every=1,
-        max_episodes=1000,
-        center_returns=True,
+        max_episodes=int(1e4),
+        train_every=5,
+        n_updates=80,
         render=True,
     ):
         """
-        Trains an agent on the given environment according to REINFORCE.
+        Trains an agent on the given environment according to PPO.
         The steps consist of the following:
             1) Create an agent given the environment
-            2) Gather 'train_every' episodes of experience
+            2) Gather steps from a number of episodes
             3) Train the agent with these episodes
 
         :param env: gym.env to train an agent on
         :param test_env: gym.env to test an agent on
         :param save_name: str, name to save the agent under
-        :param train_every: int, specifies to train after x episodes
         :param max_episodes: int, maximum number of episodes to gather/train on
-        :param center_returns: bool, if True, centers the returns for training
+        :param train_every: int, specifies to train after x episodes
+        :param n_updates: int, number of updates per training moment
         :param render: bool, if True, renders the environment while training
         :returns: trained agent of type BaseAgent
         """
 
         agent = self.create_agent(env)
 
+        n_steps_seen = 0
         for episode in range(1, max_episodes + 1):
             obs = env.reset()
             done = False
@@ -55,6 +50,7 @@ class ReinforceTrainer(BaseTrainer):
             while not done:
                 action = agent.act(obs, deterministic=False)
                 next_obs, reward, done, _ = env.step(action)
+                n_steps_seen += 1
                 episode_return += reward
                 agent.store_step(obs, action, reward, next_obs, done)
                 obs = next_obs
@@ -63,12 +59,17 @@ class ReinforceTrainer(BaseTrainer):
                     env.render()
 
             if episode % train_every == 0:
-                agent.perform_training(
-                    gamma=self.gamma, center_returns=center_returns
-                )
+                agent.perform_training(n_updates=n_updates)
+                self.evaluate_agent(agent, test_env, n_eval_episodes=5)
                 torch.save(agent, f"saved_agents/{save_name}")
 
-            print("Episode {} -- return={}".format(episode, episode_return))
+            print(
+                "Episode {}/{} -- return={}".format(
+                    episode, max_episodes, episode_return
+                ),
+                end="\r",
+            )
+
         return agent
 
     def create_agent(self, env):
@@ -78,21 +79,21 @@ class ReinforceTrainer(BaseTrainer):
         discrete actions, and then creates an agent accordingly.
 
         :param env: gym.env to create an agent for
-        :returns: ContinuousReinforceAgent or DiscreteReinforceAgent
+        :returns: PPOAgent
         """
 
         if isinstance(env.action_space, gym.spaces.Box):
-            return ContinuousReinforceAgent(
-                obs_dim=env.observation_space.shape[0],
-                act_dim=env.action_space.shape[0],
-                hidden_sizes=[64],
-            )
+            discrete = False
+            act_dim = env.action_space.shape[0]
+        elif isinstance(env.action_space, gym.spaces.Discrete):
+            discrete = True
+            act_dim = env.action_space.n
+        else:
+            raise ValueError("No known action space for this environment")
 
-        if isinstance(env.action_space, gym.spaces.Discrete):
-            return DiscreteReinforceAgent(
-                obs_dim=env.observation_space.shape[0],
-                act_dim=env.action_space.n,
-                hidden_sizes=[64],
-            )
-
-        raise ValueError("No known action space for this environment")
+        return PPOAgent(
+            obs_dim=env.observation_space.shape[0],
+            act_dim=act_dim,
+            hidden_sizes=[128, 64],
+            discrete=discrete,
+        )

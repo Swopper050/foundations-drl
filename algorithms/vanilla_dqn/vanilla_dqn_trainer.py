@@ -1,5 +1,6 @@
 import gym
 import seaborn as sns
+import torch
 
 from algorithms.base_trainer import BaseTrainer
 from algorithms.vanilla_dqn.vanilla_dqn_agent import VanillaDQNAgent
@@ -22,6 +23,7 @@ class VanillaDQNTrainer(BaseTrainer):
         *,
         env,
         test_env,
+        save_name,
         max_steps=10000,
         n_init_steps=32,
         train_every=4,
@@ -45,6 +47,7 @@ class VanillaDQNTrainer(BaseTrainer):
 
         :param env: gym.env to train an agent on
         :param test_env: gym.env to test an agent on
+        :param save_name: str, name to save the agent under
         :param max_steps: int, maximum number of steps to gather for training
         :param n_init_steps: int, initial number of experiences to gather
         :param train_every: int, specifies to train after x steps
@@ -89,6 +92,7 @@ class VanillaDQNTrainer(BaseTrainer):
 
             if self.time_to(int(eval_every / train_every), loop):
                 self.evaluate_agent(agent, test_env, end_tau)
+                torch.save(agent, f"saved_agents/{save_name}")
 
             print("At step {}".format(loop), end="\r")
         print("\nDone!")
