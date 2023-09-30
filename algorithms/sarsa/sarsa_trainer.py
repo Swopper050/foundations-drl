@@ -1,4 +1,4 @@
-import gym
+import gymnasium as gym
 import torch
 
 from algorithms.base_trainer import BaseTrainer
@@ -54,11 +54,11 @@ class SarsaTrainer(BaseTrainer):
             start_epsilon, end_epsilon, epsilon_decay_steps
         )
 
-        obs = env.reset()
+        obs, _ = env.reset()
         action = agent.act(obs, epsilon=curr_epsilon)
 
         for step in range(1, max_steps + 1):
-            next_obs, reward, done, _ = env.step(action)
+            next_obs, reward, done, _, _ = env.step(action)
             next_action = agent.act(next_obs, epsilon=curr_epsilon)
             agent.store_step(obs, action, reward, next_obs, next_action, done)
             obs = next_obs
@@ -75,7 +75,7 @@ class SarsaTrainer(BaseTrainer):
                 torch.save(agent, f"saved_agents/{save_name}")
 
             if done:
-                obs = env.reset()
+                obs, _ = env.reset()
                 action = agent.act(obs, epsilon=curr_epsilon)
 
             print("At step {}".format(step), end="\r")

@@ -1,4 +1,4 @@
-import gym
+import gymnasium as gym
 import torch
 
 from algorithms.base_trainer import BaseTrainer
@@ -43,13 +43,13 @@ class PPOTrainer(BaseTrainer):
 
         n_steps_seen = 0
         for episode in range(1, max_episodes + 1):
-            obs = env.reset()
+            obs, _ = env.reset()
             done = False
 
             episode_return = 0.0
             while not done:
                 action = agent.act(obs, deterministic=False)
-                next_obs, reward, done, _ = env.step(action)
+                next_obs, reward, done, _, _ = env.step(action)
                 n_steps_seen += 1
                 episode_return += reward
                 agent.store_step(obs, action, reward, next_obs, done)

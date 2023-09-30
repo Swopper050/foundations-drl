@@ -54,10 +54,10 @@ class BaseTrainer(ABC):
         returns = []
         for _ in range(n_eval_episodes):
             episode_return = 0.0
-            obs = env.reset()
+            obs, _ = env.reset()
             done = False
             while not done:
-                obs, reward, done, _ = env.step(agent.act(obs))
+                obs, reward, done, _, _ = env.step(agent.act(obs))
                 episode_return += reward
             returns.append(episode_return)
         print("Evaluated agent. Mean return: {}".format(np.mean(returns)))

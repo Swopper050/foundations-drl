@@ -1,4 +1,4 @@
-import gym
+import gymnasium as gym
 import seaborn as sns
 import torch
 
@@ -113,12 +113,12 @@ class VanillaDQNTrainer(BaseTrainer):
         """
 
         if self.obs is None:
-            self.obs = env.reset()
+            self.obs, _ = env.reset()
 
         n_steps_seen = 0
         while n_steps_seen < n_steps_to_gather:
             action = agent.act(self.obs, tau=curr_tau)
-            next_obs, reward, done, _ = env.step(action)
+            next_obs, reward, done, _, _ = env.step(action)
             agent.store_step(self.obs, action, reward, next_obs, done)
             self.obs = next_obs
 
@@ -126,7 +126,7 @@ class VanillaDQNTrainer(BaseTrainer):
                 env.render()
 
             if done:
-                self.obs = env.reset()
+                self.obs, _ = env.reset()
             n_steps_seen += 1
 
     def create_agent(self, env):
