@@ -1,7 +1,7 @@
 import argparse
 import os
 
-import gym
+import gymnasium as gym
 import torch
 
 from algorithms.a2c import A2CTrainer

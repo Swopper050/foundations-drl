@@ -1,22 +1,22 @@
 import argparse
 import os
 
-import gym
+import gymnasium as gym
 import torch
 
 
 def main(args):
-    env = gym.make(args.env_name)
+    env = gym.make(args.env_name, render_mode="human")
     agent = torch.load(f"saved_agents/{args.agent_name}")
 
     while True:
-        obs = env.reset()
+        obs, _ = env.reset()
         agent.episode_reset()
         done = False
 
         total_reward = 0
         while not done:
-            obs, reward, done, _ = env.step(agent.act(obs))
+            obs, reward, done, _, _ = env.step(agent.act(obs))
             total_reward += reward
             env.render()
         print(total_reward)

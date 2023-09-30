@@ -11,6 +11,9 @@ It is based on the following book:
 Foundations of Deep Reinforcement Learning, Theory and Practice in Python (2020) by Laura Graesser and Wah Loon Keng
 
 # Setup
+
+Make sure you have `swig` installed on your computer! By default, the `classic-control` and `box2d` environments are installed with `gymnasium`.
+
 ```
 git clone https://github.com/Swopper050/foundations-drl.git
 cd foundations-drl/
@@ -22,8 +25,8 @@ pip install -r requirements.txt
 
 # Example run
 ```
-python train_agent.py --env-name CartPole-v0 --algorithm reinforce --save-name cartpole_v0
-python inspect_agent.py --env-name CartPole-v0 --agent-name cartpole_v0
+python train_agent.py --env-name CartPole-v1 --algorithm reinforce --save-name cartpole_v1
+python inspect_agent.py --env-name CartPole-v1 --agent-name cartpole_v1
 ```
 
 # Architecture
